@@ -1,0 +1,23 @@
+name: imagenet
+
+data_root: /home/bliu/work/Data/ImageNet
+input_size: 224
+train_batch_size: 256
+val_batch_size: 250
+test_batch_size: 250
+return_ind: False
+use_mysplit: True
+num_workers: 4
+pin_memory: True
+
+object:
+  trainval:
+    _target_: calibrate.data.imagenet.build_train_val_dataset
+    data_root: ${data.data_root}
+    input_size: ${data.input_size}
+    use_mysplit: ${data.use_mysplit}
+  test:
+    _target_: calibrate.data.imagenet.build_test_dataset
+    data_root: ${data.data_root}
+    input_size: ${data.input_size}
+    use_mysplit: ${data.use_mysplit}

@@ -1,0 +1,32 @@
+hydra:
+  job:
+    chdir: False
+  run:
+    dir: outputs/${data.name}/${model.name}-${loss.name}-${optim.name}/${now:%Y%m%d-%H:%M:%S}
+
+defaults:
+  - data: imagenet
+  - model: resnet
+  - loss: ce
+  - optim: adamw
+  - lr_scheduler: cosine
+  - train: distributed
+  - dist: pytorch
+  - wandb: my
+  # - override hydra/job_logging: custom
+  - override hydra/hydra_logging: none
+  - override hydra/job_logging: none
+  - _self_
+
+
+job_name: ${hydra:job.name} 
+work_dir: ${hydra:run.dir}
+seed: 1
+log_period: 50
+
+calibrate:
+  num_bins: 15
+  visualize: False
+
+wandb:
+  enable: False
