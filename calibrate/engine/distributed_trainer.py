@@ -237,8 +237,8 @@ class DistributedTrainer:
 
     def log_train_iter_info(self, iter, epoch):
         log_dict = {}
-        log_dict["data_time"] = self.data_time_meter.val
-        log_dict["batch_time"] = self.batch_time_meter.val
+        log_dict["data_time"] = self.data_time_meter.avg
+        log_dict["batch_time"] = self.batch_time_meter.avg
         log_dict.update(self.loss_meter.get_vals())
         log_dict["acc"] = self.acc_meter.val
         log_dict["lr"] = get_lr(self.optimizer)

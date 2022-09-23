@@ -43,7 +43,7 @@ def get_logfile(logger):
         return logger.root.handlers[1].baseFilename
 
 
-def round_dict(d, decimals=5):
+def round_dict(d, decimals=6):
     """
     Return a new dictionary with all the flating values rounded
     with the sepcified number of decimals
