@@ -187,8 +187,6 @@ class DistributedTrainer:
 
         end = time.time()
         for i, (samples, targets) in enumerate(self.train_loader):
-            if i == 100:
-                break
             self.data_time_meter.update(time.time() - end)
             samples, targets = samples.cuda(non_blocking=True), targets.cuda(non_blocking=True)
             # forward pass
