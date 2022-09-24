@@ -28,12 +28,13 @@ def _is_free_port(port: int) -> bool:
         return all(s.connect_ex((ip, port)) != 0 for ip in ips)
 
 
-def init_dist_pytorch(backend: str = "nccl"):
+def init_dist_pytorch(backend: str = "nccl") -> None:
     local_rank = int(os.environ["LOCAL_RANK"])
     rank = int(os.environ["RANK"])
     world_size = int(os.environ["WORLD_SIZE"])
 
     torch.cuda.set_device(local_rank)
+
     dist.init_process_group(
         backend=backend, init_method="env://", world_size=world_size, rank=rank
     )

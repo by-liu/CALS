@@ -1,0 +1,20 @@
+name: tiny_imagenet
+
+data_root: /home/bliu/work/Data/tiny-imagenet-200
+train_batch_size: 64
+val_batch_size: 64
+test_batch_size: 64
+for_vit: False
+return_ind: False
+num_workers: 8
+pin_memory: True
+
+object:
+  trainval:
+    _target_: calibrate.data.tiny_imagenet.build_train_val_dataset
+    root: ${data.data_root}
+    for_vit: ${data.for_vit}
+  test:
+    _target_: calibrate.data.tiny_imagenet.build_test_dataset
+    root: ${data.data_root}
+    for_vit: ${data.for_vit}
