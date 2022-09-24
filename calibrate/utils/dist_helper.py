@@ -65,7 +65,7 @@ def init_dist_slurm(backend: str = "nccl", port: Optional[int] = None) -> None:
     os.environ['WORLD_SIZE'] = str(ntasks)
     os.environ['LOCAL_RANK'] = str(proc_id % num_gpus)
     os.environ['RANK'] = str(proc_id)
-    dist.init_process_group(backend=backend)
+    dist.init_process_group(backend=backend, rank=proc_id, world_size=ntasks)
 
 
 def reduce_tensor(tensor, n):

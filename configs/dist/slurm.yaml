@@ -1,0 +1,3 @@
+launch: slurm
+backend: nccl
+port: null
