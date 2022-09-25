@@ -174,7 +174,7 @@ class DistributedTrainer:
             self.calibrate_evaluator.reset()
 
     def reduce_loss(self, loss):
-        if isinstance(loss, tuple):
+        if isinstance(loss, (tuple, list)):
             reduced_loss = [reduce_tensor(l.data, self.world_size) for l in loss]
         else:
             reduced_loss = reduce_tensor(loss.data, self.world_size)

@@ -49,7 +49,7 @@ class LossMeter:
             return self.meters[index].avg
 
     def update(self, val, n: int = 1):
-        if not isinstance(val, tuple):
+        if not isinstance(val, (tuple, list)):
             val = [val]
         for x, meter in zip(val, self.meters):
             if isinstance(x, torch.Tensor):
