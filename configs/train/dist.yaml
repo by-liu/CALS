@@ -1,4 +1,4 @@
-name: distributed
+name: dist
 max_epoch: 200
 clip_grad: 2.0
 clip_mode: norm

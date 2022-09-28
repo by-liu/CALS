@@ -18,12 +18,13 @@ import torch.nn.functional as F
 from timm.utils import NativeScaler, dispatch_clip_grad
 
 from ..utils import (
-    init_dist_pytorch, init_dist_slurm, reduce_tensor, gather, build_dist_data_loader,
+    reduce_tensor, gather, build_dist_data_loader,
     set_random_seed, to_numpy, get_lr, round_dict,
     save_train_checkpoint, load_train_checkpoint
 )
 from .optimizer import build_optimizer
 from ..evaluation import AverageMeter, LossMeter, accuracy, ClassificationEvaluator, CalibrateEvaluator
+from ..losses import LogitMarginL1
 
 logger = logging.getLogger(__name__)
 
@@ -60,11 +61,6 @@ class DistributedTrainer:
             logger.info("Wandb initialized : {}".format(wandb.run.name))
 
     def init_distributed(self) -> None:
-        # if self.cfg.dist.launch == "python":
-        #     init_dist_pytorch(self.cfg.dist.backend)
-        # elif self.cfg.train.launch == "slurm":
-        #     init_dist_slurm(self.cfg.dist.backend, self.cfg.dist.port)
-        # dist.barrier()
         self.rank = dist.get_rank()
         self.local_rank = int(os.environ["LOCAL_RANK"])
         self.world_size = dist.get_world_size()
@@ -409,6 +405,10 @@ class DistributedTrainer:
 
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step(epoch + 1, val_score)
+
+            # run alpah scheduler for LogitMargin loss
+            if isinstance(self.loss_func, LogitMarginL1):
+                self.loss_func.schedule_alpha(epoch)
 
             if val_score > self.best_val_score:
                 self.best_val_score = val_score

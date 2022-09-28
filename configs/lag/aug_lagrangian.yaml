@@ -1,0 +1,30 @@
+name: aug_lag
+
+margin: 20
+lambd_min: 1e-6
+lambd_max: 10
+lambd_step: 1
+penalty: p3
+rho: 1
+rho_update: no
+rho_step: 5
+gamma: 1.2
+tao: 0.9
+vis_lambd_hist: False
+outstep_first: True
+normalize: True
+
+object:
+  _target_: calib.lag.AugLagrangian
+  num_classes: ${model.num_classes}
+  margin: ${lag.margin}
+  penalty: ${lag.penalty}
+  lambd_min: ${lag.lambd_min}
+  lambd_max: ${lag.lambd_max}
+  lambd_step: ${lag.lambd_step}
+  rho_init: ${lag.rho}
+  rho_update: ${lag.rho_update}
+  rho_step: ${lag.rho_step}
+  gamma: ${lag.gamma}
+  tao: ${lag.tao}
+  normalize: ${lag.normalize}
