@@ -2,7 +2,7 @@ hydra:
   job:
     chdir: False
   run:
-    dir: outputs/${data.name}/${model.name}-${loss.name}-${optim.name}/${now:%Y%m%d-%H:%M:%S}
+    dir: outputs/${data.name}/${model.name}-${loss.name}-${optim.name}/${now:%Y%m%d-%H:%M}
 
 defaults:
   - data: imagenet
