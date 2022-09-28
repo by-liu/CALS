@@ -2,8 +2,9 @@ import os.path as osp
 from typing import Tuple, Any, Optional
 from torchvision import transforms
 from torchvision.datasets import ImageNet
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
+from PIL import Image
 
 from timm.data import create_transform
 
