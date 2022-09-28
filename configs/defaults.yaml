@@ -10,7 +10,7 @@ defaults:
   - loss: ce
   - optim: adamw
   - lr_scheduler: cosine
-  - train: distributed
+  - train: dist
   - dist: pytorch
   - wandb: my
   # - override hydra/job_logging: custom

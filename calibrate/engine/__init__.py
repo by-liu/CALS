@@ -1,1 +1,2 @@
 from .distributed_trainer import DistributedTrainer
+from .distributed_lagrangian_trainer import DistributedLagrangianTrainer
