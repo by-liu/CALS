@@ -1,0 +1,4 @@
+name: soft_ce
+
+object:
+  _target_: timm.loss.SoftTargetCrossEntropy

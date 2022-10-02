@@ -1,0 +1,12 @@
+name: mixup
+enable: False
+mixup_alpha: 0.4
+mode: pair
+label_smoothing: 0
+
+object:
+  _target_: timm.data.mixup.Mixup
+  mixup_alpha: ${mixup.mixup_alpha}
+  mode: ${mixup.mode}
+  label_smoothing: ${mixup.label_smoothing}
+  num_classes: ${model.num_classes}

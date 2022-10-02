@@ -242,7 +242,7 @@ def build_transform(is_train: bool = True, for_vit: bool = False):
 
         if is_train:
             train_transform = transforms.Compose([
-                transforms.Resize(224),
+                transforms.Resize(256),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 normalize
@@ -250,7 +250,7 @@ def build_transform(is_train: bool = True, for_vit: bool = False):
             return train_transform
         else:
             val_transform = transforms.Compose([
-                transforms.Resize(224),
+                transforms.Resize(256),
                 transforms.ToTensor(),
                 normalize
             ])

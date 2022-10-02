@@ -23,7 +23,10 @@ from ..utils import (
     save_train_checkpoint, load_train_checkpoint
 )
 from .optimizer import build_optimizer
-from ..evaluation import AverageMeter, LossMeter, accuracy, ClassificationEvaluator, CalibrateEvaluator
+from ..evaluation import (
+    AverageMeter, LossMeter, accuracy, ClassificationEvaluator,
+    CalibrateEvaluator, LogitsEvaluator
+)
 from ..losses import LogitMarginL1
 
 logger = logging.getLogger(__name__)
@@ -93,6 +96,12 @@ class DistributedTrainer:
         logger.info("Val dataset initialized : {}".format(self.val_dataset))
         logger.info("Distributed train and val data loader initialized.")
 
+        self.mixup_fn = (
+            instantiate(self.cfg.mixup.object) if self.cfg.mixup.enable
+            else None
+        )
+        
+
     def build_test_loader(self) -> None:
         self.test_dataset = instantiate(self.cfg.data.object.test)
 
@@ -158,6 +167,7 @@ class DistributedTrainer:
                 self.num_classes,
                 num_bins=self.cfg.calibrate.num_bins
             )
+            self.logits_evaluator = LogitsEvaluator()
 
     def reset_meter(self) -> None:
         self.batch_time_meter.reset()
@@ -168,6 +178,7 @@ class DistributedTrainer:
         if self.rank == 0:
             self.classification_evaluator.reset()
             self.calibrate_evaluator.reset()
+            self.logits_evaluator.reset()
 
     def reduce_loss(self, loss):
         if isinstance(loss, (tuple, list)):
@@ -185,11 +196,18 @@ class DistributedTrainer:
         for i, (samples, targets) in enumerate(self.train_loader):
             self.data_time_meter.update(time.time() - end)
             samples, targets = samples.cuda(non_blocking=True), targets.cuda(non_blocking=True)
-            # forward pass
-            with self.amp_autocast():
-                ouputs = self.model(samples)
-                loss = self.loss_func(ouputs, targets)
-                loss_total = loss[0] if isinstance(loss, tuple) else loss
+            if self.mixup_fn is not None:
+                mixup_samples, mixup_targets = self.mixup_fn(samples, targets)
+                # forward pass
+                with self.amp_autocast():
+                    outputs = self.model(mixup_samples)
+                    loss = self.loss_func(outputs, mixup_targets)
+            else:
+                # forward pass
+                with self.amp_autocast():
+                    outputs = self.model(samples)
+                    loss = self.loss_func(outputs, targets)
+            loss_total = loss[0] if isinstance(loss, tuple) else loss
             # backward pass
             self.optimizer.zero_grad()
             if hasattr(self, "loss_scalar"):
@@ -212,9 +230,21 @@ class DistributedTrainer:
             # metric
             reduced_loss = self.reduce_loss(loss)
 
-            acc, acc5 = accuracy(ouputs, targets, topk=(1, 5))
+            acc, acc5 = accuracy(outputs, targets, topk=(1, 5))
             acc = reduce_tensor(acc, self.world_size)
             acc5 = reduce_tensor(acc5, self.world_size)
+
+            if self.cfg.train.evaluate_logits:
+                logits_list = [
+                    torch.zeros_like(outputs) for _ in range(self.world_size)
+                ]
+                if self.rank == 0:
+                    gather(outputs, logits_list)
+                else:
+                    gather(outputs)
+                if self.rank == 0:
+                    logits = torch.cat(logits_list, dim=0)
+                    self.logits_evaluator.update(to_numpy(logits))
 
             torch.cuda.synchronize()
 
@@ -238,6 +268,8 @@ class DistributedTrainer:
         log_dict.update(self.loss_meter.get_vals())
         log_dict["acc"] = self.acc_meter.val
         log_dict["lr"] = get_lr(self.optimizer)
+        if self.rank == 0 and self.cfg.train.evaluate_logits:
+            log_dict.update(self.logits_evaluator.curr_score())
         # log_dict.update(self.probs_evaluator.curr_score())
         logger.info("train iter[{}/{}][{}]\t{}".format(
             iter + 1, self.train_iter_per_epoch, epoch + 1,
@@ -258,6 +290,8 @@ class DistributedTrainer:
             log_dict["alpha"] = self.loss_func.alpha
         log_dict["acc"] = self.acc_meter.avg
         log_dict["acc5"] = self.acc5_meter.avg
+        if self.rank == 0 and self.cfg.train.evaluate_logits:
+            log_dict.update(self.logits_evaluator.mean_score())
         logger.info(
             "train epoch[{}/{}]\t{}".format(epoch + 1, self.cfg.train.max_epoch, json.dumps(round_dict(log_dict)))
         )
@@ -292,6 +326,7 @@ class DistributedTrainer:
             calibrate_metric, calibrate_table_data = self.calibrate_evaluator.mean_score()
             logger.info("\n" + AsciiTable(calibrate_table_data).table)
             log_dict.update(calibrate_metric)
+            log_dict.update(self.logits_evaluator.mean_score())
 
         logger.info(
             "{} epoch[{}]\t{}".format(phase, epoch + 1, json.dumps(round_dict(log_dict)))
@@ -331,7 +366,10 @@ class DistributedTrainer:
             with self.amp_autocast():
                 outputs = self.model(samples)
             # metric
-            loss = self.loss_func(outputs, targets)
+            try:
+                loss = self.loss_func(outputs, targets)
+            except Exception:
+                loss = F.cross_entropy(outputs, targets)
             acc, acc5 = accuracy(outputs, targets, topk=(1, 5))
 
             reduced_loss = self.reduce_loss(loss)
@@ -344,21 +382,22 @@ class DistributedTrainer:
             self.acc_meter.update(acc.item(), targets.size(0))
             self.acc5_meter.update(acc5.item(), targets.size(0))
 
-            predicts_list = [torch.zeros_like(outputs) for _ in range(self.world_size)]
+            logits_list = [torch.zeros_like(outputs) for _ in range(self.world_size)]
             labels_list = [torch.zeros_like(targets) for _ in range(self.world_size)]
             if self.rank == 0:
-                gather(outputs, predicts_list)
+                gather(outputs, logits_list)
                 gather(targets, labels_list)
             else:
                 gather(outputs)
                 gather(targets)
 
             if self.rank == 0:
-                predicts = torch.cat(predicts_list, dim=0)
+                logits = torch.cat(logits_list, dim=0)
                 labels = torch.cat(labels_list, dim=0)
-                self.calibrate_evaluator.update(predicts, labels)
+                self.calibrate_evaluator.update(logits, labels)
+                self.logits_evaluator.update(to_numpy(logits))
 
-                predicts = F.softmax(predicts, dim=1)
+                predicts = F.softmax(logits, dim=1)
                 self.classification_evaluator.update(
                     to_numpy(predicts), to_numpy(labels),
                 )

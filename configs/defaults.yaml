@@ -11,6 +11,7 @@ defaults:
   - optim: adamw
   - lr_scheduler: cosine
   - train: dist
+  - mixup: mixup
   - dist: pytorch
   - wandb: my
   # - override hydra/job_logging: custom
