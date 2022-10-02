@@ -22,7 +22,7 @@ from ..utils import (
     set_random_seed, to_numpy, get_lr, round_dict,
     save_train_checkpoint, load_train_checkpoint
 )
-from ..evaluation import AverageMeter, LossMeter, accuracy, ClassificationEvaluator, CalibrateEvaluator
+from ..evaluation import AverageMeter, LossMeter, accuracy, ClassificationEvaluator, CalibrateEvaluator, LogitsEvaluator
 
 
 logger = logging.getLogger(__name__)
@@ -57,6 +57,7 @@ class DistributedLagrangianTrainer(DistributedTrainer):
                 self.num_classes,
                 num_bins=self.cfg.calibrate.num_bins
             )
+            self.logits_evaluator = LogitsEvaluator()
 
     def reset_meter(self) -> None:
         self.batch_time_meter.reset()
@@ -69,6 +70,7 @@ class DistributedLagrangianTrainer(DistributedTrainer):
         if self.rank == 0:
             self.classification_evaluator.reset()
             self.calibrate_evaluator.reset()
+            self.logits_evaluator.reset()
 
     def log_train_iter_info(self, iter, epoch):
         log_dict = {}
@@ -79,6 +81,8 @@ class DistributedLagrangianTrainer(DistributedTrainer):
         log_dict["penalty"] = self.penalty_meter.val
         log_dict["constraint"] = self.constraint_meter.val
         log_dict["lr"] = get_lr(self.optimizer)
+        if self.rank == 0 and self.cfg.train.evaluate_logits:
+            log_dict.update(self.logits_evaluator.curr_score())
         # log_dict.update(self.probs_evaluator.curr_score())
         logger.info("train iter[{}/{}][{}]\t{}".format(
             iter + 1, self.train_iter_per_epoch, epoch + 1,
@@ -99,6 +103,8 @@ class DistributedLagrangianTrainer(DistributedTrainer):
             log_dict["alpha"] = self.loss_func.alpha
         log_dict["acc"] = self.acc_meter.avg
         log_dict["acc5"] = self.acc5_meter.avg
+        if self.rank == 0 and self.cfg.train.evaluate_logits:
+            log_dict.update(self.logits_evaluator.mean_score())
         log_dict["penalty"] = self.penalty_meter.avg
         log_dict["constraint"] = self.constraint_meter.avg
         lambd_mean, lambd_max = self.lagrangian.get_lambd_metric()
@@ -158,6 +164,18 @@ class DistributedLagrangianTrainer(DistributedTrainer):
             acc = reduce_tensor(acc, self.world_size)
             acc5 = reduce_tensor(acc5, self.world_size)
 
+            if self.cfg.train.evaluate_logits:
+                logits_list = [
+                    torch.zeros_like(outputs) for _ in range(self.world_size)
+                ]
+                if self.rank == 0:
+                    gather(outputs, logits_list)
+                else:
+                    gather(outputs)
+                if self.rank == 0:
+                    logits = torch.cat(logits_list, dim=0)
+                    self.logits_evaluator.update(to_numpy(logits))
+
             torch.cuda.synchronize()
 
             self.loss_meter.update(reduced_loss, targets.size(0))
@@ -190,6 +208,7 @@ class DistributedLagrangianTrainer(DistributedTrainer):
             calibrate_metric, calibrate_table_data = self.calibrate_evaluator.mean_score()
             logger.info("\n" + AsciiTable(calibrate_table_data).table)
             log_dict.update(calibrate_metric)
+            log_dict.update(self.logits_evaluator.mean_score())
 
         logger.info(
             "{} epoch[{}]\t{}".format(phase, epoch + 1, json.dumps(round_dict(log_dict)))
@@ -252,21 +271,22 @@ class DistributedLagrangianTrainer(DistributedTrainer):
             self.acc_meter.update(acc.item(), targets.size(0))
             self.acc5_meter.update(acc5.item(), targets.size(0))
 
-            predicts_list = [torch.zeros_like(outputs) for _ in range(self.world_size)]
+            logits_list = [torch.zeros_like(outputs) for _ in range(self.world_size)]
             labels_list = [torch.zeros_like(targets) for _ in range(self.world_size)]
             if self.rank == 0:
-                gather(outputs, predicts_list)
+                gather(outputs, logits_list)
                 gather(targets, labels_list)
             else:
                 gather(outputs)
                 gather(targets)
 
             if self.rank == 0:
-                predicts = torch.cat(predicts_list, dim=0)
+                logits = torch.cat(logits_list, dim=0)
                 labels = torch.cat(labels_list, dim=0)
-                self.calibrate_evaluator.update(predicts, labels)
+                self.calibrate_evaluator.update(logits, labels)
+                self.logits_evaluator.update(to_numpy(logits))
 
-                predicts = F.softmax(predicts, dim=1)
+                predicts = F.softmax(logits, dim=1)
                 self.classification_evaluator.update(
                     to_numpy(predicts), to_numpy(labels),
                 )
