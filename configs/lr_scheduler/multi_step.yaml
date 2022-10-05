@@ -1,9 +1,9 @@
 name: multi_step
-milestones: [150, 250]
-gamma: 0.1
+decay_t: [40, 60]
+decay_rate: 0.1
 
 object:
-  _target_: torch.optim.lr_scheduler.MultiStepLR
-  milestones: ${scheduler.milestones}
-  gamma: ${scheduler.gamma}
-  verbose: True
+  _target_: timm.scheduler.multistep_lr.MultiStepLRScheduler
+  decay_t: ${lr_scheduler.decay_t}
+  decay_rate: ${lr_scheduler.decay_rate}
+  t_in_epochs: True

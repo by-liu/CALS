@@ -100,7 +100,6 @@ class DistributedTrainer:
             instantiate(self.cfg.mixup.object) if self.cfg.mixup.enable
             else None
         )
-        
 
     def build_test_loader(self) -> None:
         self.test_dataset = instantiate(self.cfg.data.object.test)
@@ -356,6 +355,11 @@ class DistributedTrainer:
         self.reset_meter()
         self.model.eval()
 
+        criterion = (
+            self.loss_func if not self.cfg.mixup.enable
+            else torch.nn.CrossEntropyLoss()
+        )
+
         max_iter = len(data_loader)
 
         end = time.time()
@@ -366,10 +370,7 @@ class DistributedTrainer:
             with self.amp_autocast():
                 outputs = self.model(samples)
             # metric
-            try:
-                loss = self.loss_func(outputs, targets)
-            except Exception:
-                loss = F.cross_entropy(outputs, targets)
+            loss = criterion(outputs, targets)
             acc, acc5 = accuracy(outputs, targets, topk=(1, 5))
 
             reduced_loss = self.reduce_loss(loss)

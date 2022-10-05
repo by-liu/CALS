@@ -20,7 +20,8 @@ setup(
         "terminaltables==3.1.10",
         "matplotlib==3.5.3",
         "plotly==5.10.0",
-        "timm==0.4.12",
+        # "timm==0.4.12",
+        "timm"
         # "segmentation_models_pytorch==0.2.1",
     ],
 )

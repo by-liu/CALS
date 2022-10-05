@@ -2,14 +2,14 @@ name: cosine
 min_lr: 5e-6  # for batch_size 512
 warmup_lr: 5e-7  # for batch size 512
 warmup_epochs: 1
-decay_rate: 0.1
+cycle_decay: 0.1
 
 object:
   _target_: timm.scheduler.cosine_lr.CosineLRScheduler
   t_initial: ${train.max_epoch}
-  t_mul: 1
   lr_min: ${lr_scheduler.min_lr}
-  decay_rate: ${lr_scheduler.decay_rate}
+  cycle_mul: 1
+  cycle_decay: ${lr_scheduler.cycle_decay}
   warmup_lr_init: ${lr_scheduler.warmup_lr}
   warmup_t: ${lr_scheduler.warmup_epochs}
   cycle_limit: 1

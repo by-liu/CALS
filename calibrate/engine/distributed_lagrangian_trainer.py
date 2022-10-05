@@ -129,11 +129,18 @@ class DistributedLagrangianTrainer(DistributedTrainer):
         for i, (samples, targets) in enumerate(self.train_loader):
             self.data_time_meter.update(time.time() - end)
             samples, targets = samples.cuda(non_blocking=True), targets.cuda(non_blocking=True)
-            # forward pass
-            with self.amp_autocast():
-                outputs = self.model(samples)
-                loss = self.loss_func(outputs, targets)
-                loss_total = loss[0] if isinstance(loss, tuple) else loss
+            if self.mixup_fn is not None:
+                mixup_samples, mixup_targets = self.mixup_fn(samples, targets)
+                # forward pass
+                with self.amp_autocast():
+                    outputs = self.model(mixup_samples)
+                    loss = self.loss_func(outputs, mixup_targets)
+            else:
+                # forward pass
+                with self.amp_autocast():
+                    outputs = self.model(samples)
+                    loss = self.loss_func(outputs, targets)
+            loss_total = loss[0] if isinstance(loss, tuple) else loss
             # langrangian
             penalty, constraint = self.lagrangian.get(outputs)
             # backward pass
@@ -238,6 +245,11 @@ class DistributedLagrangianTrainer(DistributedTrainer):
         self.reset_meter()
         self.model.eval()
 
+        criterion = (
+            self.loss_func if not self.cfg.mixup.enable
+            else torch.nn.CrossEntropyLoss()
+        )
+
         max_iter = len(data_loader)
 
         if phase == "val":
@@ -250,7 +262,7 @@ class DistributedLagrangianTrainer(DistributedTrainer):
             with self.amp_autocast():
                 outputs = self.model(samples)
             # metric
-            loss = self.loss_func(outputs, targets)
+            loss = criterion(outputs, targets)
             if phase == "val":
                 self.lagrangian.update_lambd(outputs, epoch)
                 penalty, constraint = self.lagrangian.get(outputs)
