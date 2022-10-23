@@ -25,9 +25,19 @@ work_dir: ${hydra:run.dir}
 seed: 1
 log_period: 50
 
+test:
+  checkpoint: ""
+  save_logits: False
+
 calibrate:
   num_bins: 15
   visualize: False
+
+post_temperature:
+  enable: False
+  learn: False
+  grid_search_interval: 0.1
+  cross_validate: ece
 
 wandb:
   enable: False

@@ -10,13 +10,12 @@ logger = logging.getLogger(__name__)
 def load_checkpoint(
     model_path: str,
     model: torch.nn.Module,
-    device: torch.device
 ) -> None:
     if not osp.exists(model_path):
         raise FileNotFoundError(
             "Model not found : {}".format(model_path)
         )
-    checkpoint = torch.load(model_path, map_location=device)
+    checkpoint = torch.load(model_path)
     if "state_dict" in checkpoint:
         checkpoint = checkpoint["state_dict"]
         if "state_dict" in checkpoint:

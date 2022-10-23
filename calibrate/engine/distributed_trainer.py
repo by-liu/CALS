@@ -4,6 +4,7 @@ Distributed training class
 import logging
 import time
 import wandb
+from shutil import copyfile
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import instantiate
 from contextlib import suppress
@@ -225,7 +226,7 @@ class DistributedTrainer:
                         value=self.cfg.train.get("clip_grad", 2.0),
                         mode=self.cfg.train.get("clip_mode", "Norm")
                     )
-                    self.optimizer.step()
+                self.optimizer.step()
             # metric
             reduced_loss = self.reduce_loss(loss)
 
@@ -319,6 +320,7 @@ class DistributedTrainer:
         log_dict["ori_acc"] = self.acc_meter.avg
         log_dict["ori_acc5"] = self.acc5_meter.avg
         if self.rank == 0:
+            log_dict.update(self.classification_evaluator.num_samples())
             classification_metric, classification_table_data = self.classification_evaluator.mean_score()
             logger.info("\n" + AsciiTable(classification_table_data).table)
             log_dict.update(classification_metric)
@@ -476,6 +478,11 @@ class DistributedTrainer:
                 "Epoch[{}]\tBest {} on Val : {:.4f} at epoch {}".format(
                     epoch + 1, "acc", self.best_val_score, self.best_epoch + 1
                 )
+            )
+        if self.rank == 0 and self.cfg.wandb.enable:
+            copyfile(
+                osp.join(self.cfg.work_dir, "best.pth"),
+                osp.join(self.cfg.work_dir, f"{wandb.run.name}-best.pth")
             )
 
     def test(self):

@@ -111,7 +111,7 @@ def build_dist_data_loader(
     return data_loader
 
 
-def setup_logger(save_dir, dist_rank, job_name="train", level=logging.INFO):
+def setup_dist_logger(save_dir, dist_rank, job_name="train", level=logging.INFO):
     formatter = logging.Formatter(
         fmt="[%(asctime)s %(levelname)s][%(filename)s:%(lineno)s - %(funcName)s] - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -136,3 +136,29 @@ def setup_logger(save_dir, dist_rank, job_name="train", level=logging.INFO):
     logger.addHandler(file_handler)
 
     logger.info(f"Logger at rank{dist_rank} is set up.")
+
+
+def setup_logger(save_dir, job_name="train", level=logging.INFO):
+    formatter = logging.Formatter(
+        fmt="[%(asctime)s %(levelname)s][%(filename)s:%(lineno)s - %(funcName)s] - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger = logging.getLogger()
+    logger.setLevel(level)
+
+    # create console handler for master process
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # create file handler for all processes
+    file_handler = logging.FileHandler(
+        osp.join(save_dir, f"{job_name}.log"),
+        mode="a",
+    )
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    logger.info("Logger is set up.")

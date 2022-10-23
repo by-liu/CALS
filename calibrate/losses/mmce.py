@@ -14,9 +14,8 @@ class MMCE(nn.Module):
     """
     Computes MMCE_m loss.
     """
-    def __init__(self, device, lamda=1.0):
+    def __init__(self, lamda=1.0):
         super(MMCE, self).__init__()
-        self.device = device
         self.lamda = lamda
 
     def torch_kernel(self, matrix):
@@ -33,8 +32,8 @@ class MMCE(nn.Module):
         predicted_probs = F.softmax(input, dim=1)
         predicted_probs, pred_labels = torch.max(predicted_probs, 1)
         correct_mask = torch.where(torch.eq(pred_labels, target),
-                          torch.ones(pred_labels.shape).to(self.device),
-                          torch.zeros(pred_labels.shape).to(self.device))
+                          torch.ones(pred_labels.shape).cuda(),
+                          torch.zeros(pred_labels.shape).cuda())
 
         c_minus_r = correct_mask - predicted_probs
 
@@ -60,9 +59,8 @@ class MMCE_weighted(nn.Module):
     """
     Computes MMCE_w loss.
     """
-    def __init__(self, device, lamda=1.0):
+    def __init__(self, lamda=1.0):
         super(MMCE_weighted, self).__init__()
-        self.device = device
         self.lamda = lamda
 
     def torch_kernel(self, matrix):
@@ -99,15 +97,15 @@ class MMCE_weighted(nn.Module):
         predicted_probs, predicted_labels = torch.max(predicted_probs, 1)
 
         correct_mask = torch.where(torch.eq(predicted_labels, target),
-                                    torch.ones(predicted_labels.shape).to(self.device),
-                                    torch.zeros(predicted_labels.shape).to(self.device))
+                                    torch.ones(predicted_labels.shape).cuda(),
+                                    torch.zeros(predicted_labels.shape).cuda())
 
         k = torch.sum(correct_mask).type(torch.int64)
         k_p = torch.sum(1.0 - correct_mask).type(torch.int64)
-        cond_k = torch.where(torch.eq(k,0),torch.tensor(0).to(self.device),torch.tensor(1).to(self.device))
-        cond_k_p = torch.where(torch.eq(k_p,0),torch.tensor(0).to(self.device),torch.tensor(1).to(self.device))
-        k = torch.max(k, torch.tensor(1).to(self.device))*cond_k*cond_k_p + (1 - cond_k*cond_k_p)*2 
-        k_p = torch.max(k_p, torch.tensor(1).to(self.device))*cond_k_p*cond_k + ((1 - cond_k_p*cond_k)*
+        cond_k = torch.where(torch.eq(k,0),torch.tensor(0).cuda(),torch.tensor(1).cuda())
+        cond_k_p = torch.where(torch.eq(k_p,0),torch.tensor(0).cuda(),torch.tensor(1).cuda())
+        k = torch.max(k, torch.tensor(1).cuda())*cond_k*cond_k_p + (1 - cond_k*cond_k_p)*2 
+        k_p = torch.max(k_p, torch.tensor(1).cuda())*cond_k_p*cond_k + ((1 - cond_k_p*cond_k)*
                                             (correct_mask.shape[0] - 2))
 
 
@@ -146,4 +144,4 @@ class MMCE_weighted(nn.Module):
         # ce
         ce = F.cross_entropy(input, target)
 
-        return ce + self.lamda * torch.max((cond_k*cond_k_p).type(torch.FloatTensor).to(self.device).detach()*torch.sqrt(mmd_error + 1e-10), torch.tensor(0.0).to(self.device))
+        return ce + self.lamda * torch.max((cond_k*cond_k_p).type(torch.FloatTensor).cuda().detach()*torch.sqrt(mmd_error + 1e-10), torch.tensor(0.0).cuda())

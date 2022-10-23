@@ -6,7 +6,7 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from torch import distributed as dist
 
-from calibrate.utils import setup_logger, init_dist_pytorch, init_dist_slurm
+from calibrate.utils import setup_dist_logger, init_dist_pytorch, init_dist_slurm
 
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ def main(cfg: DictConfig):
         raise NotImplementedError(f"Unsupported launch method: {cfg.dist.launch}")
     dist.barrier()
 
-    setup_logger(cfg.work_dir, dist.get_rank(), job_name=cfg.job_name)
+    setup_dist_logger(cfg.work_dir, dist.get_rank(), job_name=cfg.job_name)
     logger.info(f"Distributed initialized : rank - {dist.get_rank()}, world_size - {dist.get_world_size()}")
 
     logger.info("Rank {} launches command : {}".format(dist.get_rank(), " ".join(sys.argv)))

@@ -1,0 +1,10 @@
+name: cpc
+lambd_bdc: 0.1
+lambd_bec: 1.0
+ignore_index: -100
+
+object:
+  _target_: calibrate.losses.CPCLoss
+  lambd_bdc: ${loss.lambd_bdc}
+  lambd_bec: ${loss.lambd_bec}
+  ignore_index: ${loss.ignore_index}

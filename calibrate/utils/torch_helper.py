@@ -56,3 +56,9 @@ def disable_bn(model):
 def enable_bn(model):
     model.train()
 
+
+def one_hot(x, num_classes, on_value=1, off_value=0, device='cuda'):
+    x = x.long().view(-1, 1)
+    return torch.full(
+        (x.size()[0], num_classes), off_value, device=device
+    ).scatter_(1, x, on_value)

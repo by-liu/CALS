@@ -80,7 +80,7 @@ def get_penalty_func(name):
         "p2": p2,
         "p3": p3,
         "phr": phr,
-        "relu": relu,
+        "linear": linear,
     }
 
     return all_penalties[name]
