@@ -22,7 +22,10 @@ from ..utils import (
     set_random_seed, to_numpy, get_lr, round_dict,
     save_train_checkpoint, load_train_checkpoint
 )
-from ..evaluation import AverageMeter, LossMeter, accuracy, ClassificationEvaluator, CalibrateEvaluator, LogitsEvaluator
+from ..evaluation import (
+    AverageMeter, LossMeter, accuracy, ClassificationEvaluator,
+    CalibrateEvaluator, LogitsEvaluator
+)
 
 
 logger = logging.getLogger(__name__)
