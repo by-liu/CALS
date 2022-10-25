@@ -142,6 +142,16 @@ def build_train_val_dataset(data_root, use_mysplit=False):
     return train_dataset, val_dataset
 
 
+def build_val_dataset(data_root):
+    val_dataset = VOCSegmentation(
+        data_root,
+        split="val",
+        data_transform=data_transformer(is_train=False)
+    )
+
+    return val_dataset
+
+
 def get_train_val_loader(
     data_root, batch_size=32, num_workers=8, pin_memory=True,
     use_mysplit=False

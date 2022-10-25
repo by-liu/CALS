@@ -28,13 +28,14 @@ class SegmentCalibrateEvaluator(Evaluator):
         self.cece_criterion = ClasswiseECELoss(self.num_bins).cuda()
 
     def reset(self) -> None:
+        self.count = 0
         self.nll = []
         self.ece = []
         self.aece = []
         self.cece = []
 
     def num_samples(self):
-        return len(self.ece)
+        return self.count
 
     def main_metric(self) -> None:
         return "ece"
@@ -59,19 +60,14 @@ class SegmentCalibrateEvaluator(Evaluator):
 
         # dismiss background
         index = torch.nonzero(labels != 0).squeeze()
-        logits = logits[index, :].to(self.device)
-        labels = labels[index].to(self.device)
+        logits = logits[index, :].cuda()
+        labels = labels[index].cuda()
 
-        n = logits.shape[0]
-        for i in range(n):
-            nll = self.nll_criterion(logits[i].unsqueeze(0), labels[i].unsqueeze(0)).item()
-            ece = self.ece_criterion(logits[i].unsqueeze(0), labels[i].unsqueeze(0)).item()
-            aece = self.aece_criterion(logits[i].unsqueeze(0), labels[i].unsqueeze(0)).item()
-            cece = self.cece_criterion(logits[i].unsqueeze(0), labels[i].unsqueeze(0)).item()
-            self.nll.append(nll)
-            self.ece.append(ece)
-            self.aece.append(aece)
-            self.cece.append(cece)
+        self.count += 1
+        self.nll.append(self.nll_criterion(logits, labels).item())
+        self.ece.append(self.ece_criterion(logits, labels).item())
+        self.aece.append(self.aece_criterion(logits, labels).item())
+        self.cece.append(self.cece_criterion(logits, labels).item())
 
         # self.count.append(n)
         # nll = self.nll_criterion(logits, labels).item()

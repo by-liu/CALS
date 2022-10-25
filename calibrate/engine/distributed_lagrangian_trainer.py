@@ -209,6 +209,7 @@ class DistributedLagrangianTrainer(DistributedTrainer):
             log_dict["penalty"] = self.penalty_meter.avg
             log_dict["constraint"] = self.constraint_meter.avg
         if self.rank == 0:
+            log_dict["samples"] = self.classification_evaluator.num_samples()
             classification_metric, classification_table_data = self.classification_evaluator.mean_score()
             logger.info("\n" + AsciiTable(classification_table_data).table)
             log_dict.update(classification_metric)

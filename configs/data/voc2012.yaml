@@ -1,18 +1,18 @@
 name: voc
 
 data_root: /home/bliu/work/Data/VOCdevkit/VOC2012
-batch_size: 8
+train_batch_size: 8
+val_batch_size: 8
+test_batch_size: 1
 use_mysplit: True
+num_workers: 8
+pin_memory: True
 
 object:
   trainval:
-    _target_: calibrate.data.voc.get_train_val_loader
+    _target_: calibrate.data.voc.build_train_val_dataset
     data_root: ${data.data_root}
-    batch_size: ${data.batch_size}
-    num_workers: 8
     use_mysplit: ${data.use_mysplit}
   test:
-    _target_: calibrate.data.voc.get_val_loader
+    _target_: calibrate.data.voc.build_val_dataset
     data_root: ${data.data_root}
-    batch_size: ${data.batch_size}
-    num_workers: 8

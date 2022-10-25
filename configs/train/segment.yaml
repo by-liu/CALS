@@ -1,0 +1,10 @@
+name: segment
+max_epoch: 100
+clip_grad: 2.0
+clip_mode: norm
+resume: True
+keep_checkpoint_num: 1
+keep_checkpoint_interval: 0
+
+object:
+  _target_: calibrate.engine.SegmentTrainer

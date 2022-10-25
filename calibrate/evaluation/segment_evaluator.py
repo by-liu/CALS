@@ -129,7 +129,7 @@ class SegmentEvaluator(Evaluator):
                 + ["{:.4f}".format(class_acc[i])]
             )
         class_table_data.append(
-            [""] + ["mean"]
+            [None] + ["mean"]
             + ["{:.4f}".format(np.mean(class_iou))]
             + ["{:.4f}".format(np.mean(class_dice))]
             + ["{:.4f}".format(np.mean(class_acc))]

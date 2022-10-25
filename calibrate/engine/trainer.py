@@ -135,7 +135,7 @@ class Trainer:
             )
         else:
             self.loss_meter = LossMeter()
-        self.classification_evaluator = ClassificationEvaluator(self.num_classes)
+        self.evaluator = ClassificationEvaluator(self.num_classes)
         self.calibrate_evaluator = CalibrateEvaluator(
             self.num_classes,
             num_bins=self.cfg.calibrate.num_bins,
@@ -147,7 +147,7 @@ class Trainer:
         self.batch_time_meter.reset()
         self.data_time_meter.reset()
         self.loss_meter.reset()
-        self.classification_evaluator.reset()
+        self.evaluator.reset()
         self.calibrate_evaluator.reset()
         self.logits_evaluator.reset()
         self.acc_meter.reset()
@@ -193,9 +193,9 @@ class Trainer:
 
     def log_eval_epoch_info(self, epoch, phase="val"):
         log_dict = {}
-        log_dict["samples"] = self.classification_evaluator.num_samples()
+        log_dict["samples"] = self.evaluator.num_samples()
         log_dict.update(self.loss_meter.get_avgs())
-        classification_metric, classification_table_data = self.classification_evaluator.mean_score()
+        classification_metric, classification_table_data = self.evaluator.mean_score()
         log_dict.update(classification_metric)
         calibrate_metric, calibrate_table_data = self.calibrate_evaluator.mean_score()
         log_dict.update(calibrate_metric)
@@ -299,7 +299,7 @@ class Trainer:
             self.calibrate_evaluator.update(outputs, labels)
             self.logits_evaluator.update(to_numpy(outputs))
             predicts = F.softmax(outputs, dim=1)
-            self.classification_evaluator.update(
+            self.evaluator.update(
                 to_numpy(predicts), to_numpy(labels)
             )
             # measure elapsed time
@@ -312,7 +312,7 @@ class Trainer:
 
         return (
             self.loss_meter.avg(0),
-            self.classification_evaluator.mean_score()[0][self.classification_evaluator.main_metric()],
+            self.evaluator.mean_score()[0][self.evaluator.main_metric()],
         )
 
     def log_eval_iter_info(self, iter, max_iter, epoch, phase="val"):
@@ -320,7 +320,7 @@ class Trainer:
         log_dict["data_time"] = self.data_time_meter.avg
         log_dict["batch_time"] = self.batch_time_meter.avg
         log_dict.update(self.loss_meter.get_vals())
-        log_dict.update(self.classification_evaluator.curr_score())
+        log_dict.update(self.evaluator.curr_score())
         if self.cfg.train.evaluate_logits:
             log_dict.update(self.logits_evaluator.curr_score())
         log_dict["lr"] = get_lr(self.optimizer)
@@ -367,7 +367,7 @@ class Trainer:
                 wandb.log({
                     "epoch": epoch,
                     "val/best_epoch": self.best_epoch,
-                    f"val/best_{self.classification_evaluator.main_metric()}": self.best_val_score,
+                    f"val/best_{self.evaluator.main_metric()}": self.best_val_score,
                 })
         if self.cfg.wandb.enable:
             copyfile(

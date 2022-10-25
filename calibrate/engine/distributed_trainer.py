@@ -320,7 +320,7 @@ class DistributedTrainer:
         log_dict["ori_acc"] = self.acc_meter.avg
         log_dict["ori_acc5"] = self.acc5_meter.avg
         if self.rank == 0:
-            log_dict.update(self.classification_evaluator.num_samples())
+            log_dict["samples"] = self.classification_evaluator.num_samples()
             classification_metric, classification_table_data = self.classification_evaluator.mean_score()
             logger.info("\n" + AsciiTable(classification_table_data).table)
             log_dict.update(classification_metric)
