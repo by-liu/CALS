@@ -361,7 +361,7 @@ class Trainer:
             )
             # logging best performance on val so far
             logger.info(
-                f"Epoch[{epoch + 1}]\tBest {self.calibrate_evaluator.main_metric()} on Val : {self.best_val_score:.4f} at epoch {self.best_epoch + 1}"
+                f"Epoch[{epoch + 1}]\tBest {self.evaluator.main_metric()} on Val : {self.best_val_score:.4f} at epoch {self.best_epoch + 1}"
             )
             if self.cfg.wandb.enable and best_checkpoint:
                 wandb.log({
