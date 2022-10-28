@@ -3,8 +3,7 @@ import sys
 import logging
 import hydra
 from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf
-from torch import distributed as dist
+from omegaconf import DictConfig,
 
 from calibrate.utils import setup_logger
 

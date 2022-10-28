@@ -11,6 +11,7 @@ from terminaltables.ascii_table import AsciiTable
 from typing import Optional
 
 import torch
+from torch.utils.data import Dataset, DataLoader
 from torch import distributed as dist
 import torch.nn.functional as F
 from timm.utils import NativeScaler, dispatch_clip_grad
@@ -40,28 +41,34 @@ class Tester:
             deterministic=True if self.cfg.seed is not None else False
         )
 
-        self.build_data_loader()
+        self.build_test_loader()
         self.build_model(self.cfg.test.checkpoint)
         self.build_meter()
         self.init_wandb_or_not()
 
-    def build_data_loader(self) -> None:
+    def build_test_loader(self) -> None:
         # data pipeline
-        self.test_loader = instantiate(self.cfg.data.object.test)
+        self.test_dataset = instantiate(self.cfg.data.object.test)
+        self.test_loader = DataLoader(
+            self.test_dataset,
+            batch_size=self.cfg.data.test_batch_size,
+            num_workers=self.cfg.data.num_workers,
+            pin_memory=self.cfg.data.pin_memory,
+        )
 
     def build_model(self, checkpoint: Optional[str] = "") -> None:
         self.model = instantiate(self.cfg.model.object)
         self.model.cuda()
         logger.info("Model initialized")
         self.checkpoint_path = osp.join(
-            self.work_dir, "best.pth" if checkpoint == "" else checkpoint
+            self.cfg.work_dir, "best.pth" if not checkpoint else checkpoint
         )
         load_checkpoint(self.checkpoint_path, self.model)
 
     def build_meter(self):
         self.batch_time_meter = AverageMeter()
         self.num_classes = self.cfg.model.num_classes
-        self.classification_evaluator = ClassificationEvaluator(self.num_classes)
+        self.evaluator = ClassificationEvaluator(self.num_classes)
         self.calibrate_evaluator = CalibrateEvaluator(
             self.num_classes,
             num_bins=self.cfg.calibrate.num_bins,
@@ -69,7 +76,7 @@ class Tester:
 
     def reset_meter(self):
         self.batch_time_meter.reset()
-        self.classification_evaluator.reset()
+        self.evaluator.reset()
         self.calibrate_evaluator.reset()
 
     def init_wandb_or_not(self) -> None:
@@ -97,9 +104,11 @@ class Tester:
         self.reset_meter()
         self.model.eval()
 
+        max_iter = len(data_loader)
+
         end = time.time()
         for i, (inputs, labels) in enumerate(data_loader):
-            inputs, labels = inputs.cuda(), labels.cuda()
+            inputs, labels = inputs.cuda(non_blocking=True), labels.cuda(non_blocking=True)
             # forward
             outputs = self.model(inputs)
             if post_temp:
@@ -107,12 +116,14 @@ class Tester:
             # metric
             self.calibrate_evaluator.update(outputs, labels)
             predicts = F.softmax(outputs, dim=1)
-            self.classification_evaluator.update(
+            self.evaluator.update(
                 to_numpy(predicts), to_numpy(labels)
             )
             # measure elapsed time
             self.batch_time_meter.update(time.time() - end)
             end = time.time()
+            if (i + 1) % self.cfg.log_period == 0:
+                self.log_eval_iter_info(i, max_iter, phase=phase)
         self.log_eval_epoch_info(phase)
         if self.cfg.test.save_logits:
             logits_save_path = (
@@ -125,15 +136,15 @@ class Tester:
     def log_eval_iter_info(self, iter, max_iter, phase="val"):
         log_dict = {}
         log_dict["batch_time"] = self.batch_time_meter.avg
-        log_dict.update(self.classification_evaluator.curr_score())
+        log_dict.update(self.evaluator.curr_score())
         logger.info(
-            f"{phase} iter[{iter}/{max_iter}]\t{json.dumps(round_dict(log_dict))}"
+            f"{phase} iter[{iter + 1}/{max_iter}]\t{json.dumps(round_dict(log_dict))}"
         )
 
     def log_eval_epoch_info(self, phase="val"):
         log_dict = {}
-        log_dict["samples"] = self.classification_evaluator.num_samples()
-        classification_metric, classification_table_data = self.classification_evaluator.mean_score()
+        log_dict["samples"] = self.evaluator.num_samples()
+        classification_metric, classification_table_data = self.evaluator.mean_score()
         log_dict.update(classification_metric)
         calibrate_metric, calibrate_table_data = self.calibrate_evaluator.mean_score()
         log_dict.update(calibrate_metric)
@@ -143,7 +154,7 @@ class Tester:
         if self.cfg.wandb.enable:
             wandb_log_dict = {}
             wandb_log_dict.update(dict(
-                ("{}/{}".format(phase, key), value) for (key, value) in log_dict.items()
+                (f"{phase}/{key}", value) for (key, value) in log_dict.items()
             ))
             wandb_log_dict["{}/classification_score_table".format(phase)] = (
                 wandb.Table(
@@ -171,7 +182,6 @@ class Tester:
             learn=self.cfg.post_temperature.learn,
             grid_search_interval=self.cfg.post_temperature.grid_search_interval,
             cross_validate=self.cfg.post_temperature.cross_validate,
-            device=self.device
         )
         model_with_temp.set_temperature(self.val_loader)
         temp = model_with_temp.get_temperature()

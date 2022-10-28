@@ -56,6 +56,7 @@ class SegmentTrainer(Trainer):
         self.data_time_meter.reset()
         self.loss_meter.reset()
         self.evaluator.reset()
+        self.calibrate_evaluator.reset()
 
     def log_iter_info(self, iter, max_iter, epoch, phase="train"):
         log_dict = {}

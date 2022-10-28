@@ -2,7 +2,7 @@ hydra:
   job:
     chdir: False
   run:
-    dir: outputs/${data.name}/${model.name}-${loss.name}-${optim.name}/${now:%Y%m%d-%H:%M}
+    dir: outputs/${data.name}/${model.name}-${loss.name}-${train.name}/${now:%Y%m%d-%H:%M}
 
 defaults:
   - data: imagenet
@@ -14,6 +14,7 @@ defaults:
   - mixup: mixup
   - dist: pytorch
   - wandb: my
+  - test: local
   # - override hydra/job_logging: custom
   - override hydra/hydra_logging: none
   - override hydra/job_logging: none
@@ -24,10 +25,6 @@ job_name: ${hydra:job.name}
 work_dir: ${hydra:run.dir}
 seed: 1
 log_period: 50
-
-test:
-  checkpoint: ""
-  save_logits: False
 
 calibrate:
   num_bins: 15

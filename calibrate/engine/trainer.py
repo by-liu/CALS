@@ -201,7 +201,7 @@ class Trainer:
         log_dict.update(calibrate_metric)
         log_dict.update(self.logits_evaluator.mean_score())
         # log_dict.update(self.probs_evaluator.mean_score())
-        logger.info("{} Epoch[{}]\t{}".format(
+        logger.info("{} epoch[{}]\t{}".format(
             phase, epoch + 1, json.dumps(round_dict(log_dict))
         ))
         logger.info("\n" + AsciiTable(classification_table_data).table)
@@ -211,7 +211,7 @@ class Trainer:
             wandb_log_dict.update(dict(
                 (f"{phase}/{key}", value) for (key, value) in log_dict.items()
             ))
-            wandb_log_dict[f"{phase}/classify_score_table"] = (
+            wandb_log_dict[f"{phase}/classification_score_table"] = (
                 wandb.Table(
                     columns=classification_table_data[0],
                     data=classification_table_data[1:]
@@ -325,7 +325,7 @@ class Trainer:
             log_dict.update(self.logits_evaluator.curr_score())
         log_dict["lr"] = get_lr(self.optimizer)
         # log_dict.update(self.probs_evaluator.curr_score())
-        logger.info("{} Iter[{}/{}][{}]\t{}".format(
+        logger.info("{} iter[{}/{}][{}]\t{}".format(
             phase, iter + 1, max_iter, epoch + 1,
             json.dumps(round_dict(log_dict))
         ))

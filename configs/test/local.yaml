@@ -1,1 +1,6 @@
-name: test
+name: local
+checkpoint: best.pth
+save_logits: False
+
+object:
+  _target_: calibrate.engine.Tester

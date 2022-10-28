@@ -16,10 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 class SegmentCalibrateEvaluator(Evaluator):
-    def __init__(self, num_classes, num_bins=15, ignore_index:  int = -1,) -> None:
+    def __init__(self, num_classes,
+        num_bins:int = 15, ignore_index:  int = -1, batch_mode: bool = False 
+    ) -> None:
         self.num_classes = num_classes
         self.num_bins = num_bins
         self.ignore_index = ignore_index
+        self.batch_mode = batch_mode
         self.reset()
 
         self.nll_criterion = nn.CrossEntropyLoss().cuda()
@@ -28,14 +31,14 @@ class SegmentCalibrateEvaluator(Evaluator):
         self.cece_criterion = ClasswiseECELoss(self.num_bins).cuda()
 
     def reset(self) -> None:
-        self.count = 0
+        self.count = [] if self.batch_mode else 0
         self.nll = []
         self.ece = []
         self.aece = []
         self.cece = []
 
     def num_samples(self):
-        return self.count
+        return sum(self.count) if self.batch_mode else self.count
 
     def main_metric(self) -> None:
         return "ece"
@@ -53,21 +56,40 @@ class SegmentCalibrateEvaluator(Evaluator):
         logits = torch.einsum("ncxy->nxyc", logits)
         logits = logits.reshape(n * x * y, -1)
         labels = labels.reshape(n * x * y)
+
         if 0 <= self.ignore_index:
             index = torch.nonzero(labels != self.ignore_index).squeeze()
             logits = logits[index, :]
             labels = labels[index]
 
-        # dismiss background
-        index = torch.nonzero(labels != 0).squeeze()
-        logits = logits[index, :].cuda()
-        labels = labels[index].cuda()
+        if self.batch_mode:
+            # dismiss background
+            index = torch.nonzero(labels != 0).squeeze()
+            logits = logits[index, :].cuda()
+            labels = labels[index].cuda()
 
-        self.count += 1
-        self.nll.append(self.nll_criterion(logits, labels).item())
-        self.ece.append(self.ece_criterion(logits, labels).item())
-        self.aece.append(self.aece_criterion(logits, labels).item())
-        self.cece.append(self.cece_criterion(logits, labels).item())
+            n = logits.shape[0]
+            self.count.append(n)
+            nll = self.nll_criterion(logits, labels).item()
+            ece = self.ece_criterion(logits, labels).item()
+            aece = self.aece_criterion(logits, labels).item()
+            cece = self.cece_criterion(logits, labels).item()
+
+            self.nll.append(nll)
+            self.ece.append(ece)
+            self.aece.append(aece)
+            self.cece.append(cece)
+        else:
+            # dismiss background
+            #index = torch.nonzero(labels != 0).squeeze()
+            #logits = logits[index, :].cuda()
+            #labels = labels[index].cuda()
+
+            self.count += 1
+            self.nll.append(self.nll_criterion(logits, labels).item())
+            self.ece.append(self.ece_criterion(logits, labels).item())
+            self.aece.append(self.aece_criterion(logits, labels).item())
+            self.cece.append(self.cece_criterion(logits, labels).item())
 
         # self.count.append(n)
         # nll = self.nll_criterion(logits, labels).item()
@@ -81,10 +103,19 @@ class SegmentCalibrateEvaluator(Evaluator):
         # self.cece.append(cece)
 
     def mean_score(self, print=False, all_metric=True):
-        nll = mean(self.nll)
-        ece = mean(self.ece)
-        aece = mean(self.aece)
-        cece = mean(self.cece)
+        if self.batch_mode:
+            total_count = sum(self.count)
+            nll, ece, aece, cece = 0, 0, 0, 0
+            for i in range(len(self.nll)):
+                nll += self.nll[i] * (self.count[i] / total_count)
+                ece += self.ece[i] * (self.count[i] / total_count)
+                aece += self.aece[i] * (self.count[i] / total_count)
+                cece += self.cece[i] * (self.count[i] / total_count)
+        else:
+            nll = mean(self.nll)
+            ece = mean(self.ece)
+            aece = mean(self.aece)
+            cece = mean(self.cece)
 
         metric = {"nll": nll, "ece": ece, "aece": aece, "cece": cece}
 

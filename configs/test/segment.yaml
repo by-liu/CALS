@@ -1,0 +1,5 @@
+name: segment
+checkpoint: best.pth
+
+object:
+  _target_: calibrate.engine.SegmentTester
