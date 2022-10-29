@@ -3,7 +3,7 @@ import sys
 import logging
 import hydra
 from hydra.utils import instantiate
-from omegaconf import DictConfig,
+from omegaconf import DictConfig
 
 from calibrate.utils import setup_logger
 

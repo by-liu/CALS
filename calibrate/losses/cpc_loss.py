@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..utils.torch_helper import one_hot
+from ..utils.constants import EPS
 
 
 class CPCLoss(nn.Module):
@@ -35,7 +36,10 @@ class CPCLoss(nn.Module):
         # Binary Exclusion COnstraints (BEC)
         logits_rest = logits[targets_one_hot == 0].view(logits.size(0), -1)
         diff = logits_rest.unsqueeze(2) - logits_rest.unsqueeze(1)
-        loss_bec = - F.logsigmoid(diff).sum() / (2 * (logits.size(1) - 1) * logits.size(1) - 2) / logits.size(0)
+        loss_bec = - torch.sum(
+            0.5 * F.logsigmoid(diff + EPS)
+            / (logits.size(1) - 1) / (logits.size(1) - 2) / logits.size(0)
+        )
 
         return loss_bec
 

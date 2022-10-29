@@ -7,4 +7,3 @@ object:
   gamma: ${loss.gamma}
   ignore_index: ${loss.ignore_index}
   size_average: True
-  device: ${device}
