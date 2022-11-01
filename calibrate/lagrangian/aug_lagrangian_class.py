@@ -58,7 +58,7 @@ class AugLagrangianClass(AugLagrangian):
 
         h = self.get_constraints(logits)
         p, _ = self.penalty_func(h, self.lambd, self.rho)
-        penalty = p.mean()
+        penalty = p.sum(dim=1).mean()
         constraint = h.mean()
         return penalty, constraint
 
