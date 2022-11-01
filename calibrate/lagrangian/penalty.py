@@ -18,7 +18,7 @@ def p2(h: Tensor, lambd: Tensor, rho: Tensor) -> Tuple[Tensor, Tensor]:
     )
 
 
-def p3(h: Tensor, lambd: Tensor, rho: Tensor):
+def p3(h: Tensor, lambd: Tensor, rho: Tensor) -> Tuple[Tensor, Tensor]:
     if lambd.ndim == 1:
         lambd = lambd.unsqueeze(dim=0).expand(h.shape)
 
