@@ -76,7 +76,7 @@ class AugLagrangian:
             self.prev_penalty = None
 
     def get_constraints(self, logits):
-        max_values = logits.amax(dim=1, keepdim=True)
+        max_values = logits.amax(dim=1, keepdim=True).expand_as(logits)
         diff = max_values - logits
         constraints = diff - self.margin
         if self.normalize:
