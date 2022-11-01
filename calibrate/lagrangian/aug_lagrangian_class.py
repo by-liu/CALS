@@ -51,14 +51,11 @@ class AugLagrangianClass(AugLagrangian):
         self.prev_penalty = None
 
     def get(self, logits: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        if logits.dim() > 2:
-            logits = logits.view(logits.size(0), logits.size(1), -1)  # N,C,H,W => N,C,H*W
-            logits = logits.transpose(1, 2)    # N,C,H*W => N,H*W,C
-            logits = logits.contiguous().view(-1, logits.size(2))   # N,H*W,C => N*H*W,C
+        logits = logits.movedim(1, -1)  # move class dimension to last
 
         h = self.get_constraints(logits)
         p, _ = self.penalty_func(h, self.lambd, self.rho)
-        penalty = p.sum(dim=1).mean()
+        penalty = p.sum(dim=-1).mean()  # sum over classes and average over samples (and possibly pixels)
         constraint = h.mean()
         return penalty, constraint
 
@@ -71,13 +68,12 @@ class AugLagrangianClass(AugLagrangian):
         """update lamdb based on the gradeint on the logits
         """
         if (epoch + 1) % self.lambd_step == 0:
-            if logits.dim() > 2:
-                logits = logits.view(logits.size(0), logits.size(1), -1)  # N,C,H,W => N,C,H*W
-                logits = logits.transpose(1, 2)    # N,C,H*W => N,H*W,C
-                logits = logits.contiguous().view(-1, logits.size(2))   # N,H*W,C => N*H*W,C
+            logits = logits.movedim(1, -1)  # move class dimension to last
+
             h = self.get_constraints(logits)
             _, grad_p = self.penalty_func(h, self.lambd, self.rho)
             grad_p = torch.clamp(grad_p, min=self.lambd_min, max=self.lambd_max)
+            grad_p = grad_p.flatten(start_dim=0, end_dim=-2)
             self.grad_p_sum += grad_p.sum(dim=0)
             self.sample_num += grad_p.shape[0]
 
