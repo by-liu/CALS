@@ -49,11 +49,8 @@ class AugLagrangianClass(AugLagrangian):
         # self.rho = self.rho_min
         # class-wise rho
         self.rho = self.rho_min * torch.ones(self.num_classes, requires_grad=False).cuda()
-
-        self.prev_penalty, self.curr_penalty = (
-            torch.zeros(self.num_classes, requires_grad=False).cuda(),
-            torch.zeros(self.num_classes, requires_grad=False).cuda(),
-        )
+        # for updating rho
+        self.prev_constraints, self.curr_constraints = None, None
 
     def get(self, logits: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         logits = logits.movedim(1, -1)  # move class dimension to last
@@ -68,7 +65,7 @@ class AugLagrangianClass(AugLagrangian):
         # if (epoch + 1) % self.lambd_step == 0:
         self.grad_p_sum = torch.zeros_like(self.lambd)
         self.sample_num = 0
-        self.curr_penalty = torch.zeros_like(self.curr_penalty)
+        self.curr_constraints = torch.zeros_like(self.rho)
 
     def update_lambd(self, logits, epoch):
         """update lamdb based on the gradeint on the logits
@@ -77,12 +74,12 @@ class AugLagrangianClass(AugLagrangian):
         logits = logits.movedim(1, -1)  # move class dimension to last
 
         h = self.get_constraints(logits)
-        p, grad_p = self.penalty_func(h, self.lambd, self.rho)
+        _, grad_p = self.penalty_func(h, self.lambd, self.rho)
         grad_p = torch.clamp(grad_p, min=self.lambd_min, max=self.lambd_max)
         grad_p = grad_p.flatten(start_dim=0, end_dim=-2)
         self.grad_p_sum += grad_p.sum(dim=0)
         self.sample_num += grad_p.shape[0]
-        self.curr_penalty += p.sum(dim=0)
+        self.curr_constraints += h.sum(dim=0)
 
     def set_lambd(self, epoch):
         if (epoch + 1) % self.lambd_step == 0:
@@ -91,34 +88,26 @@ class AugLagrangianClass(AugLagrangian):
                 grad_p_mean = reduce_tensor(grad_p_mean, dist.get_world_size())
             self.lambd = torch.clamp(grad_p_mean, min=self.lambd_min, max=self.lambd_max).detach()
 
-    def update_rho_by_val(self, val_penalty, epoch):
-        if self.rho_update:
-            if (epoch + 1) % self.rho_step == 0:
-                if (
-                    self.prev_penalty is not None
-                    and self.prev_penalty > 0
-                    and val_penalty > 0
-                    and val_penalty > self.tao * self.prev_penalty
-                ):
-                    self.rho = min(self.rho_max, self.rho * self.gamma)
-                    logger.info("Adjusting rho in AugLagrangian to {}".format(self.rho))
-            self.prev_penalty = val_penalty
-
     def update_rho(self, epoch):
         if self.rho_update:
-            self.curr_penalty = self.curr_penalty / self.sample_num
+            self.curr_constraints = self.curr_constraints / self.sample_num
             if dist.is_initialized():
-                self.curr_penalty = reduce_tensor(self.curr_penalty, dist.get_world_size())
+                self.curr_constraints = reduce_tensor(self.curr_constraints, dist.get_world_size())
 
-            if (epoch + 1) % self.rho_step == 0 and self.prev_penalty.sum() != 0:
+            if (epoch + 1) % self.rho_step == 0 and self.prev_constraints is not None:
+                # increase rho if the constraint became unsatisfied or didn't decrease as expected
+                thres = torch.where(
+                    self.prev_constraints > 0, self.prev_constraints * self.tao, 0
+                )
+
                 self.rho = torch.where(
-                    self.curr_penalty > self.tao * self.prev_penalty,
+                    self.curr_constraints > thres,
                     self.gamma * self.rho,
                     self.rho
                 )
-                self.rho = torch.clamp(self.rho, min=self.rho_min, max=self.rho_max)
+                self.rho = torch.clamp(self.rho, min=self.rho_min, max=self.rho_max).detach()
 
-            self.prev_penalty = self.curr_penalty
+            self.prev_constraints = self.curr_constraints
 
     def get_lambd_metric(self):
         lambd = self.lambd
