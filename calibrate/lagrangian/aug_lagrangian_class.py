@@ -46,9 +46,14 @@ class AugLagrangianClass(AugLagrangian):
         self.normalize = normalize
 
         self.lambd = self.lambd_min * torch.ones(self.num_classes, requires_grad=False).cuda()
-        self.rho = self.rho_min
+        # self.rho = self.rho_min
+        # class-wise rho
+        self.rho = self.rho_min * torch.ones(self.num_classes, requires_grad=False).cuda()
 
-        self.prev_penalty = None
+        self.prev_penalty, self.curr_penalty = (
+            torch.zeros(self.num_classes, requires_grad=False).cuda(),
+            torch.zeros(self.num_classes, requires_grad=False).cuda(),
+        )
 
     def get(self, logits: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         logits = logits.movedim(1, -1)  # move class dimension to last
@@ -60,22 +65,24 @@ class AugLagrangianClass(AugLagrangian):
         return penalty, constraint
 
     def reset_update_lambd(self, epoch):
-        if (epoch + 1) % self.lambd_step == 0:
-            self.grad_p_sum = torch.zeros_like(self.lambd)
-            self.sample_num = 0
+        # if (epoch + 1) % self.lambd_step == 0:
+        self.grad_p_sum = torch.zeros_like(self.lambd)
+        self.sample_num = 0
+        self.curr_penalty = torch.zeros_like(self.curr_penalty)
 
     def update_lambd(self, logits, epoch):
         """update lamdb based on the gradeint on the logits
         """
-        if (epoch + 1) % self.lambd_step == 0:
-            logits = logits.movedim(1, -1)  # move class dimension to last
+        # if (epoch + 1) % self.lambd_step == 0:
+        logits = logits.movedim(1, -1)  # move class dimension to last
 
-            h = self.get_constraints(logits)
-            _, grad_p = self.penalty_func(h, self.lambd, self.rho)
-            grad_p = torch.clamp(grad_p, min=self.lambd_min, max=self.lambd_max)
-            grad_p = grad_p.flatten(start_dim=0, end_dim=-2)
-            self.grad_p_sum += grad_p.sum(dim=0)
-            self.sample_num += grad_p.shape[0]
+        h = self.get_constraints(logits)
+        p, grad_p = self.penalty_func(h, self.lambd, self.rho)
+        grad_p = torch.clamp(grad_p, min=self.lambd_min, max=self.lambd_max)
+        grad_p = grad_p.flatten(start_dim=0, end_dim=-2)
+        self.grad_p_sum += grad_p.sum(dim=0)
+        self.sample_num += grad_p.shape[0]
+        self.curr_penalty += p.sum(dim=0)
 
     def set_lambd(self, epoch):
         if (epoch + 1) % self.lambd_step == 0:
@@ -97,7 +104,26 @@ class AugLagrangianClass(AugLagrangian):
                     logger.info("Adjusting rho in AugLagrangian to {}".format(self.rho))
             self.prev_penalty = val_penalty
 
+    def update_rho(self, epoch):
+        if self.rho_update:
+            self.curr_penalty = self.curr_penalty / self.sample_num
+            if dist.is_initialized():
+                self.curr_penalty = reduce_tensor(self.curr_penalty, dist.get_world_size())
+
+            if (epoch + 1) % self.rho_step == 0 and self.prev_penalty.sum() != 0:
+                self.rho = torch.where(
+                    self.curr_penalty > self.tao * self.prev_penalty,
+                    self.gamma * self.rho,
+                    self.rho
+                )
+                self.rho = torch.clamp(self.rho, min=self.rho_min, max=self.rho_max)
+
+            self.prev_penalty = self.curr_penalty
+
     def get_lambd_metric(self):
         lambd = self.lambd
 
         return lambd.mean().item(), lambd.max().item()
+
+    def get_rho_metric(self):
+        return self.rho.mean().item(), self.rho.max().item()

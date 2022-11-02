@@ -1,0 +1,12 @@
+name: dist
+max_epoch: 200
+clip_grad: 2.0
+clip_mode: norm
+resume: True
+keep_checkpoint_num: 1
+keep_checkpoint_interval: 0
+use_amp: True
+evaluate_logits: True
+
+object:
+  _target_: calibrate.engine.DistributedTrainerPlus
