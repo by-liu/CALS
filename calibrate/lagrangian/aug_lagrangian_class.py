@@ -96,12 +96,8 @@ class AugLagrangianClass(AugLagrangian):
 
             if (epoch + 1) % self.rho_step == 0 and self.prev_constraints is not None:
                 # increase rho if the constraint became unsatisfied or didn't decrease as expected
-                thres = torch.where(
-                    self.prev_constraints > 0, self.prev_constraints * self.tao, 0
-                )
-
                 self.rho = torch.where(
-                    self.curr_constraints > thres,
+                    self.curr_constraints > (self.prev_constraints.clamp(min=0) * self.tao),
                     self.gamma * self.rho,
                     self.rho
                 )
