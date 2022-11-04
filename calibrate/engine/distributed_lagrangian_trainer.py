@@ -113,7 +113,7 @@ class DistributedLagrangianTrainer(DistributedTrainer):
         lambd_mean, lambd_max = self.lagrangian.get_lambd_metric()
         log_dict["lambd_mean"] = lambd_mean
         log_dict["lambd_max"] = lambd_max
-        log_dict["rho"] = self.lagrangian.rho
+        log_dict["rho_mean"], log_dict["rho_max"] = self.lagrangian.get_rho_metric()
         logger.info(
             "train epoch[{}/{}]\t{}".format(epoch + 1, self.cfg.train.max_epoch, json.dumps(round_dict(log_dict)))
         )
@@ -315,7 +315,8 @@ class DistributedLagrangianTrainer(DistributedTrainer):
         self.log_eval_epoch_info(epoch=epoch, phase=phase)
         if phase == "val":
             self.lagrangian.set_lambd(epoch)
-            if self.lagrangian.rho_update:
-                self.lagrangian.update_rho_by_val(self.penalty_meter.avg, epoch)
+            self.lagrangian.update_rho(epoch)
+            # if self.lagrangian.rho_update:
+            #     self.lagrangian.update_rho_by_val(self.penalty_meter.avg, epoch)
 
         return self.loss_meter.avg(0), self.acc_meter.avg

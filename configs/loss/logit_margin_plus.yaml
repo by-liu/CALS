@@ -1,0 +1,17 @@
+name: logit_margin_plus
+margin: 10
+alpha: 0.1
+ignore_index: -100
+gamma: 1.1
+tao: 1.1
+step_size: 1
+
+object:
+  _target_: calibrate.losses.LogitMarginPlus
+  num_classes: ${model.num_classes}
+  margin: ${loss.margin}
+  alpha: ${loss.alpha}
+  ignore_index: ${loss.ignore_index}
+  gamma: ${loss.gamma}
+  tao: ${loss.tao}
+  step_size: ${loss.step_size}

@@ -7,3 +7,4 @@ from .penalty_entropy import PenaltyEntropy
 from .penalty_l1 import PenaltyL1
 from .logit_margin_l1 import LogitMarginL1
 from .cpc_loss import CPCLoss
+from .logit_margin_plus import LogitMarginPlus
