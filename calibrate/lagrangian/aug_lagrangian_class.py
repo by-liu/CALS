@@ -57,8 +57,8 @@ class AugLagrangianClass(AugLagrangian):
 
         h = self.get_constraints(logits)
         p, _ = self.penalty_func(h, self.lambd, self.rho)
-        penalty = p.sum(dim=-1).mean()  # sum over classes and average over samples (and possibly pixels)
-        # penalty = p.mean()
+        # penalty = p.sum(dim=-1).mean()  # sum over classes and average over samples (and possibly pixels)
+        penalty = p.mean()
         constraint = h.mean()
         return penalty, constraint
 
@@ -80,6 +80,7 @@ class AugLagrangianClass(AugLagrangian):
         grad_p = grad_p.flatten(start_dim=0, end_dim=-2)
         self.grad_p_sum += grad_p.sum(dim=0)
         self.sample_num += grad_p.shape[0]
+        h = h.flatten(start_dim=0, end_dim=-2)
         self.curr_constraints += h.sum(dim=0)
 
     def set_lambd(self, epoch):
