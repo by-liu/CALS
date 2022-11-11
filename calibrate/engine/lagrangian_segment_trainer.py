@@ -128,7 +128,7 @@ class LagrangianSegmentTrainer(SegmentTrainer):
         lambd_mean, lambd_max = self.lagrangian.get_lambd_metric()
         log_dict["lambd_mean"] = lambd_mean
         log_dict["lambd_max"] = lambd_max
-        log_dict["rho"] = self.lagrangian.rho
+        log_dict["rho_mean"], log_dict["lambd_max"] = self.lagrangian.get_rho_metric()
         logger.info("train epoch[{}]\t{}".format(
             epoch + 1, json.dumps(round_dict(log_dict))
         ))
@@ -187,7 +187,6 @@ class LagrangianSegmentTrainer(SegmentTrainer):
         self.log_eval_epoch_info(epoch, phase)
         if phase == "val":
             self.lagrangian.set_lambd(epoch)
-            if self.lagrangian.rho_update:
-                self.lagrangian.update_rho_by_val(self.penalty_meter.avg, epoch)
+            self.lagrangian.update_rho(epoch)
 
         return self.loss_meter.avg(0), self.evaluator.mean_score(main=True)
