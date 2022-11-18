@@ -46,6 +46,15 @@ class Tester:
         self.build_meter()
         self.init_wandb_or_not()
 
+    def build_val_loader(self):
+        _, self.val_dataset = instantiate(self.cfg.data.object.trainval)
+        self.val_loader = DataLoader(
+            self.val_dataset,
+            batch_size=self.cfg.data.val_batch_size,
+            num_workers=self.cfg.data.num_workers,
+            pin_memory=self.cfg.data.pin_memory,
+        )
+
     def build_test_loader(self) -> None:
         # data pipeline
         self.test_dataset = instantiate(self.cfg.data.object.test)
@@ -176,7 +185,7 @@ class Tester:
             wandb.log(wandb_log_dict)
 
     def post_temperature(self):
-        _, self.val_loader = instantiate(self.cfg.data.object.trainval)
+        self.build_val_loader()
         model_with_temp = ModelWithTemperature(
             self.model,
             learn=self.cfg.post_temperature.learn,

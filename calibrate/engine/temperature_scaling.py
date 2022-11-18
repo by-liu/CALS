@@ -176,7 +176,7 @@ class ModelWithTemperature(nn.Module):
             T_opt_nll = 1.0
             T_opt_ece = 1.0
 
-            for t in np.arange(0.1, 4, self.grid_search_interval):
+            for t in np.arange(0.1, 2, self.grid_search_interval):
                 self.temperature = t
                 after_temperature_nll = nll_criterion(self.temperature_scale(logits), labels).item()
                 after_temperature_ece = ece_criterion(self.temperature_scale(logits), labels).item()
