@@ -131,7 +131,10 @@ class DistributedTrainer:
         )
 
     def build_loss(self) -> None:
-        self.loss_func = instantiate(self.cfg.loss.object)
+        if self.cfg.loss.name == "bs":
+            self.loss_func = instantiate(self.cfg.loss.object, sample_per_class=self.train_dataset.img_num_per_cls)
+        else:
+            self.loss_func = instantiate(self.cfg.loss.object)
         self.loss_func.cuda()
         # setup automatic mixed-precision (AMP) loss scaling and op casting
         self.amp_autocast = suppress  # do nothing

@@ -1,0 +1,4 @@
+name: bs
+
+object:
+  _target_: calibrate.losses.BalancedSoftmaxLoss

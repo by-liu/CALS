@@ -28,6 +28,9 @@ class ImagenetLT(Dataset):
                 img, label = line.strip().split()
                 self.img_path.append(osp.join(self.root, img))
                 self.labels.append(int(label))
+        self.img_num_per_cls = [0 for _ in range(max(self.labels) + 1)]
+        for cls in self.labels:
+            self.img_num_per_cls[cls] += 1
 
     def __len__(self):
         return len(self.labels)
