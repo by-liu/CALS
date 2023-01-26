@@ -110,7 +110,13 @@ class AugLagrangianClass(AugLagrangian):
     def get_lambd_metric(self):
         lambd = self.lambd
 
-        return lambd.mean().item(), lambd.max().item()
+        metrics = {
+            "lambd_mean": lambd.mean().item(),
+            "lambd_max": lambd.max().item(),
+            "lambd_min": lambd.min().item(),
+        }
+
+        return metrics
 
     def get_rho_metric(self):
         return self.rho.mean().item(), self.rho.max().item()

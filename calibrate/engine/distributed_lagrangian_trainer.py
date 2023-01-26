@@ -8,6 +8,8 @@ import wandb
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import instantiate
 from terminaltables.ascii_table import AsciiTable
+import numpy as np
+import os.path as osp
 
 import torch
 from torch import distributed as dist
@@ -110,9 +112,7 @@ class DistributedLagrangianTrainer(DistributedTrainer):
             log_dict.update(self.logits_evaluator.mean_score())
         log_dict["penalty"] = self.penalty_meter.avg
         log_dict["constraint"] = self.constraint_meter.avg
-        lambd_mean, lambd_max = self.lagrangian.get_lambd_metric()
-        log_dict["lambd_mean"] = lambd_mean
-        log_dict["lambd_max"] = lambd_max
+        log_dict.update(self.lagrangian.get_lambd_metric())
         log_dict["rho_mean"], log_dict["rho_max"] = self.lagrangian.get_rho_metric()
         logger.info(
             "train epoch[{}/{}]\t{}".format(epoch + 1, self.cfg.train.max_epoch, json.dumps(round_dict(log_dict)))
@@ -316,7 +316,14 @@ class DistributedLagrangianTrainer(DistributedTrainer):
         if phase == "val":
             self.lagrangian.set_lambd(epoch)
             self.lagrangian.update_rho(epoch)
+            if self.cfg.lag.save_lambd:
+                self.save_lambd(epoch)
             # if self.lagrangian.rho_update:
             #     self.lagrangian.update_rho_by_val(self.penalty_meter.avg, epoch)
 
         return self.loss_meter.avg(0), self.acc_meter.avg
+
+    def save_lambd(self, epoch):
+        if self.rank == 0:
+            lambd = to_numpy(self.lagrangian.lambd)
+            np.save(osp.join(self.cfg.work_dir, "lambd_{}.npy".format(epoch)), lambd)

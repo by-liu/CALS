@@ -125,9 +125,7 @@ class LagrangianSegmentTrainer(SegmentTrainer):
         log_dict.update(metric)
         log_dict["penalty"] = self.penalty_meter.avg
         log_dict["constraint"] = self.constraint_meter.avg
-        lambd_mean, lambd_max = self.lagrangian.get_lambd_metric()
-        log_dict["lambd_mean"] = lambd_mean
-        log_dict["lambd_max"] = lambd_max
+        log_dict.update(self.lagrangian.get_lambd_metric())
         log_dict["rho_mean"], log_dict["lambd_max"] = self.lagrangian.get_rho_metric()
         logger.info("train epoch[{}]\t{}".format(
             epoch + 1, json.dumps(round_dict(log_dict))

@@ -11,6 +11,7 @@ gamma: 1.2
 tao: 0.9
 vis_lambd_hist: False
 normalize: True
+save_lambd: False
 
 object:
   _target_: calibrate.lagrangian.AugLagrangianClass
