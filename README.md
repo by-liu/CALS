@@ -3,6 +3,8 @@
 
 [Bingyuan Liu](https://by-liu.github.io/), [Jérôme Rony](https://scholar.google.ca/citations?user=5_jpGD0AAAAJ&hl=en), [Adrian Galdran](https://scholar.google.es/citations?user=VKx-rswAAAAJ&hl=es), [Jose Dolz](https://josedolz.github.io/), [Ismail Ben Ayed](https://profs.etsmtl.ca/ibenayed/)
 
+```To Appear at CVPR 2023```
+
 [[`arXiv`](https://arxiv.org/abs/2211.15088)][[`BibTeX`](#CitingCALS)] 
 
 
