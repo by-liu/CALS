@@ -3,9 +3,10 @@
 
 [Bingyuan Liu](https://by-liu.github.io/), [Jérôme Rony](https://scholar.google.ca/citations?user=5_jpGD0AAAAJ&hl=en), [Adrian Galdran](https://scholar.google.es/citations?user=VKx-rswAAAAJ&hl=es), [Jose Dolz](https://josedolz.github.io/), [Ismail Ben Ayed](https://profs.etsmtl.ca/ibenayed/)
 
-```To Appear at CVPR 2023```
 
-[[`arXiv`](https://arxiv.org/abs/2211.15088)][[`BibTeX`](#CitingCALS)] 
+[[`CVPR 2023`](https://openaccess.thecvf.com/content/CVPR2023/html/Liu_Class_Adaptive_Network_Calibration_CVPR_2023_paper.html)][[`arXiv`](https://arxiv.org/abs/2211.15088)][[`BibTeX`](#CitingCALS)] 
+
+![overview](./assets/overview.jpg)
 
 
 ## Install:
@@ -276,10 +277,10 @@ OMP_NUM_THREADS=8 CUDA_VISIBLE_DEVICES=0,1 torchrun \
 
 
 ```BibTeX
-@article{liu2022cals,
+@inproceedings{liu2023cals,
   title = {Class Adaptive Network Calibration}, 
   author={Bingyuan Liu and Jérôme Rony and Adrian Galdran and Jose Dolz and Ismail Ben Ayed},
-  journal = {arXiv preprint arXiv:2211.15088},
-  year={2022},
+  booktitle = {CVPR},
+  year={2023},
 }
 ```
